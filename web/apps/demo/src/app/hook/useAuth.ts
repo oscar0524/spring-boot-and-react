@@ -15,24 +15,8 @@ export const useAuth = () => {
   };
 
   useEffect(() => {
-    // 檢查 URL 是否包含 accessToken
-    const searchParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = searchParams.get('accessToken');
-
-    if (tokenFromUrl) {
-      // 清除 URL 中的 accessToken 參數
-      searchParams.delete('accessToken');
-      const newUrl = searchParams.toString()
-        ? `${window.location.pathname}?${searchParams.toString()}`
-        : window.location.pathname;
-
-      window.history.replaceState({}, document.title, newUrl);
-
-      dispatch(authActions.setAccessToken({ accessToken: tokenFromUrl }));
-      return;
-    }
     dispatch(authActions.loadAccessToken());
-  }, [dispatch, accessToken]);
+  }, [dispatch]);
 
   return {
     accessToken,

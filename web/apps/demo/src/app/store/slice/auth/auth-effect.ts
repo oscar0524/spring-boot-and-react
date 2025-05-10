@@ -24,8 +24,24 @@ const loadAuthEpic = (action$: Observable<Action>, state$: Observable<any>) =>
   action$.pipe(
     filter(authActions.loadAccessToken.match),
     withLatestFrom(state$),
-    map(([_, state]) => {
-      const accessToken = authSelectors.getAccessToken(state);
+    map(([_, state]) => state),
+    map((state) => authSelectors.getAccessToken(state)),
+    map((accessToken) => {
+      // 檢查 URL 是否包含 accessToken
+      const searchParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = searchParams.get('accessToken');
+
+      if (tokenFromUrl) {
+        // 清除 URL 中的 accessToken 參數
+        searchParams.delete('accessToken');
+        const newUrl = searchParams.toString()
+          ? `${window.location.pathname}?${searchParams.toString()}`
+          : window.location.pathname;
+
+        window.history.replaceState({}, document.title, newUrl);
+        return authActions.setAccessToken({ accessToken: tokenFromUrl });
+      }
+
       console.log('Loaded Access Token:', accessToken);
       if (accessToken) {
         // Perform any action with the loaded access token
