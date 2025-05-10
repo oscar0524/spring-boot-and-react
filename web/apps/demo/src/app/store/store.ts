@@ -1,7 +1,6 @@
 import { Action, combineReducers, configureStore } from '@reduxjs/toolkit';
 import { authReducer } from './slice/auth/auth-slice';
 import { persistReducer, persistStore } from 'redux-persist';
-import storage from 'redux-persist/lib/storage';
 import { combineEpics, createEpicMiddleware } from 'redux-observable';
 import { authEpic } from './slice/auth/auth-effect';
 import { createAxiosInstance } from '../hook/useAxios';
@@ -43,7 +42,7 @@ const epicMiddleware = createEpicMiddleware<
 const persistConfig = {
   key: 'root',
   storage: sessionStorage,
-  whitelist: ['auth'], // only auth will be persisted
+  whitelist: ['auth'],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
