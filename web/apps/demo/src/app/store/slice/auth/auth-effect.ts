@@ -1,95 +1,144 @@
-import { Action } from 'redux';
-import { authActions, authSelectors } from './auth-slice';
+import { Action } from 'redux'; // 導入 Redux Action 類型
+import { authActions, authSelectors } from './auth-slice'; // 導入認證相關的 actions 和 selectors
 import {
-  catchError,
-  filter,
-  map,
-  Observable,
-  of,
-  switchMap,
-  withLatestFrom,
+  catchError, // 處理錯誤情況
+  filter, // 過濾操作符
+  map, // 轉換數據操作符
+  Observable, // RxJS Observable 類型
+  of, // 創建簡單 Observable 的方法
+  switchMap, // 切換到新 Observable 的操作符
+  withLatestFrom, // 結合最新狀態的操作符
 } from 'rxjs';
-import { EpicDependencies } from '../../store';
+import { EpicDependencies } from '../../store'; // 導入 Epic 依賴項
+import Axios from 'axios-observable'; // 導入基於 Observable 的 Axios 客戶端
 
+/**
+ * 登入 Epic
+ * 處理登入動作，重定向到登入頁面
+ */
 const loginEpic = (action$: Observable<Action>) =>
   action$.pipe(
-    filter(authActions.login.match),
+    filter(authActions.login.match), // 過濾出 login action
     map((action) => {
-      document.location.href = `http://localhost:8080/user/login?username=oscar&redirect=${window.location}`;
-      return authActions.emptyAction();
+      // 重定向到登入頁面，並設置返回 URL
+      document.location.href = `http://localhost:8080/form/login?username=oscar&redirect=${window.location}`;
+      return authActions.emptyAction(); // 返回空操作避免狀態更新
     })
   );
 
+/**
+ * 登出 Epic
+ * 處理登出動作，重定向到登出頁面
+ */
+const logoutEpic = (action$: Observable<Action>) =>
+  action$.pipe(
+    filter(authActions.logout.match), // 過濾出 logout action
+    map((action) => {
+      // 重定向到登出頁面，並設置返回 URL
+      document.location.href = `http://localhost:8080/form/logout?redirect=${window.location}`;
+      return authActions.emptyAction(); // 返回空操作避免狀態更新
+    })
+  );
+
+/**
+ * 加載認證信息 Epic
+ * 基於當前 token 狀態決定下一步操作
+ */
 const loadAuthEpic = (action$: Observable<Action>, state$: Observable<any>) =>
   action$.pipe(
-    filter(authActions.loadAccessToken.match),
-    withLatestFrom(state$),
-    map(([_, state]) => state),
-    map((state) => authSelectors.getAccessToken(state)),
+    filter(authActions.loadAccessToken.match), // 過濾出 loadAccessToken action
+    withLatestFrom(state$), // 結合最新的 Redux 狀態
+    map(([_, state]) => state), // 提取狀態
+    map((state) => authSelectors.getAccessToken(state)), // 獲取訪問令牌
     map((accessToken) => {
-      // 檢查 URL 是否包含 accessToken
-      const searchParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = searchParams.get('accessToken');
-
-      if (tokenFromUrl) {
-        // 清除 URL 中的 accessToken 參數
-        searchParams.delete('accessToken');
-        const newUrl = searchParams.toString()
-          ? `${window.location.pathname}?${searchParams.toString()}`
-          : window.location.pathname;
-
-        window.history.replaceState({}, document.title, newUrl);
-        return authActions.setAccessToken({ accessToken: tokenFromUrl });
-      }
-
-      console.log('Loaded Access Token:', accessToken);
       if (accessToken) {
-        // Perform any action with the loaded access token
-        console.log('Access Token is available:', accessToken);
+        // 如果已有令牌，加載用戶信息
         return authActions.loadUserInfo();
       }
-      console.log('No Access Token found');
-      return authActions.login();
+
+      // 否則，獲取新令牌
+      return authActions.loadToken();
     })
   );
 
+/**
+ * 加載令牌 Epic
+ * 從服務器獲取訪問令牌
+ */
+const loadTokenEpic = (action$: Observable<Action>) =>
+  action$.pipe(
+    filter(authActions.loadToken.match), // 過濾出 loadToken action
+    switchMap(() =>
+      Axios.get('http://localhost:8080/form/token', {
+        withCredentials: true, // 包含憑證（如 cookies）
+      }).pipe(
+        map((response) => {
+          const accessToken = response.data.accessToken; // 提取訪問令牌
+
+          return authActions.setAccessToken({ accessToken }); // 設置訪問令牌
+        }),
+        catchError((error) => {
+          console.error('Error fetching access token:', error); // 記錄錯誤
+          return of(authActions.login()); // 出錯時重定向到登入頁面
+        })
+      )
+    )
+  );
+
+/**
+ * 加載用戶信息 Epic
+ * 使用訪問令牌獲取用戶資料
+ */
 const loadUserInfoEpic = (
   action$: Observable<Action>,
   state$: Observable<any>,
-  { axios }: EpicDependencies
+  { axios }: EpicDependencies // 注入配置好的 axios 實例
 ) =>
   action$.pipe(
-    filter(authActions.loadUserInfo.match),
+    filter(authActions.loadUserInfo.match), // 過濾出 loadUserInfo action
     switchMap(() => {
-      const _axios = axios();
-      console.log('Axios Instance:', _axios);
+      const _axios = axios(); // 獲取配置好的 axios 實例（可能已包含認證頭）
+
       return _axios.get('http://localhost:8080/user/info').pipe(
         map((response) => {
-          const userInfo = response.data;
-          console.log('User Info:', userInfo);
-          return authActions.setUserName({ userName: userInfo.username });
+          const userInfo = response.data; // 提取用戶信息
+
+          return authActions.setUserName({ userName: userInfo.username }); // 設置用戶名
         }),
         catchError((error) => {
-          console.error('Error fetching user info:', error);
-          return of(authActions.emptyAction());
+          console.error('Error fetching user info:', error); // 記錄錯誤
+          return of(authActions.emptyAction()); // 返回空操作
         })
       );
     })
   );
 
-const setAccessTokenEpic = (action$: Observable<Action>) =>
+/**
+ * 設置訪問令牌後的處理 Epic
+ * 當訪問令牌被設置後，自動加載用戶信息
+ */
+const setAccessTokenEpic = (
+  action$: Observable<Action>,
+  state$: Observable<any>
+) =>
   action$.pipe(
-    filter(authActions.setAccessToken.match),
-    map((action) => {
-      const { accessToken } = action.payload;
-      console.log('Access Token:', accessToken);
-      return authActions.emptyAction();
-    })
+    filter(authActions.setAccessToken.match), // 過濾出 setAccessToken action
+    withLatestFrom(state$), // 結合最新的 Redux 狀態
+    map(([_, state]) => state), // 提取狀態
+    map((state) => authSelectors.getAccessToken(state)), // 獲取訪問令牌
+    filter((accessToken) => !!accessToken), // 確保令牌存在
+    map((action) => authActions.loadUserInfo()) // 加載用戶信息
   );
 
+/**
+ * 導出所有認證相關的 Epics
+ * 這些 Epics 將被註冊到 Redux-Observable 中間件
+ */
 export const authEpic = [
   loginEpic,
+  logoutEpic,
   loadAuthEpic,
+  loadTokenEpic,
   loadUserInfoEpic,
   setAccessTokenEpic,
 ];

@@ -1,22 +1,19 @@
+import { useDispatch } from 'react-redux';
 import { useAuth } from './hook/useAuth';
+import { authActions } from './store/slice/auth/auth-slice';
 
 export function App() {
+  const dispatch = useDispatch();
   const { accessToken } = useAuth();
   return (
     <div>
       {accessToken}
       <button
         onClick={() => {
-          fetch('http://localhost:8080/user/info', {
-            headers: {
-              authorization: `Bearer ${accessToken}`,
-            },
-          }).then(async (response) => {
-            console.log('Response:', await response.json());
-          });
+          dispatch(authActions.logout());
         }}
       >
-        Login
+        LogOut
       </button>
     </div>
   );
