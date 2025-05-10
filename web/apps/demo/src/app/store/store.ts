@@ -6,7 +6,7 @@ import { persistReducer, persistStore } from 'redux-persist';
 // 引入 Redux-Observable 相關函數，用於處理非同步操作
 import { combineEpics, createEpicMiddleware } from 'redux-observable';
 import { authEpic } from './slice/auth/auth-effect';
-import { createAxiosInstance } from '../hook/useAxios';
+import { createAxiosObservableInstance } from '../hook/useAxiosObservable';
 // 使用 sessionStorage 作為持久化儲存媒介
 import sessionStorage from 'redux-persist/lib/storage/session';
 
@@ -25,7 +25,7 @@ const epicMiddlewareDependencies = {
     const dispatch = store.dispatch;
     const accessToken = state.auth.accessToken;
     // 創建帶有認證令牌的 axios 實例
-    return createAxiosInstance(dispatch, accessToken);
+    return createAxiosObservableInstance(dispatch, accessToken);
   },
 };
 
