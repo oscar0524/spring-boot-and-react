@@ -68,7 +68,7 @@ public class SecurityConfig {
      * @return 配置好的安全過濾器鏈
      */
     @Bean
-    SecurityWebFilterChain springSecurityFilterChain(
+    SecurityWebFilterChain springJWTSecurityFilterChain(
             ServerHttpSecurity http,
             JwtAuthenticationFilter jwtFilter,
             CorsWebFilter corsWebFilter) {
