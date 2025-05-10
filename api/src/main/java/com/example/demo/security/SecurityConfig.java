@@ -23,46 +23,57 @@ import reactor.core.publisher.Mono;
 @EnableWebFluxSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-        @Bean
-        CorsWebFilter corsWebFilter() {
-                CorsConfiguration corsConfig = new CorsConfiguration();
-                corsConfig.setAllowedOrigins(
-                                Arrays.asList("*"));
-                corsConfig.setMaxAge(3600L);
-                corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
-                // 明確指定允許的 headers
-                corsConfig.setAllowedHeaders(Collections.singletonList("*"));
-                // corsConfig.setAllowCredentials(true);
+    @Bean
+    CorsWebFilter corsWebFilter() {
+        CorsConfiguration corsConfig = new CorsConfiguration();
+        corsConfig.setAllowedOrigins(Arrays.asList("http://localhost:4200"));
+        corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE",
+                "OPTIONS"));
+        corsConfig.setAllowedHeaders(Arrays.asList("*"));
+        corsConfig.setAllowCredentials(true);
+        corsConfig.setMaxAge(3600L);
 
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-                source.registerCorsConfiguration("/**", corsConfig);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", corsConfig);
 
-                return new CorsWebFilter(source);
-        }
+        return new CorsWebFilter(source);
+    }
 
-        @Bean
-        SecurityWebFilterChain springSecurityFilterChain(
-                        ServerHttpSecurity http,
-                        JwtAuthenticationFilter jwtFilter) {
+    @Bean
+    SecurityWebFilterChain springSecurityFilterChain(
+            ServerHttpSecurity http,
+            JwtAuthenticationFilter jwtFilter,
+            CorsWebFilter corsWebFilter) { // 添加 corsWebFilter 參數
 
-                return http
-                                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
-                                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
-                                .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
-                                .authorizeExchange(exchanges -> exchanges
-                                                .pathMatchers("/user/login").permitAll()
-                                                .pathMatchers("/test/hello").permitAll()
-                                                .anyExchange().authenticated())
-                                .addFilterAt(jwtFilter, SecurityWebFiltersOrder.AUTHENTICATION)
-                                // .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
-                                // .authenticationEntryPoint((exchange, ex) -> Mono
-                                // .fromRunnable(() -> exchange.getResponse()
-                                // .setStatusCode(HttpStatus.UNAUTHORIZED)))
-                                // .accessDeniedHandler((exchange, denied) -> Mono
-                                // .fromRunnable(() -> exchange.getResponse()
-                                // .setStatusCode(HttpStatus.FORBIDDEN))))
-                                .build();
-        }
+        return http
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
+                .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers("/user/login").permitAll()
+                        .pathMatchers("/test/hello").permitAll()
+                        .anyExchange().authenticated())
+                // 添加 CORS 過濾器，應放在認證過濾器之前
+                .addFilterAt(corsWebFilter, SecurityWebFiltersOrder.CORS)
+                // JWT 認證過濾器
+                .addFilterAt(jwtFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+                .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
+                        .authenticationEntryPoint((exchange, ex) -> {
+                            // 檢查響應是否已提交
+                            if (!exchange.getResponse().isCommitted()) {
+                                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                            }
+                            return Mono.empty();
+                        })
+                        .accessDeniedHandler((exchange, denied) -> {
+                            // 檢查響應是否已提交
+                            if (!exchange.getResponse().isCommitted()) {
+                                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                            }
+                            return Mono.empty();
+                        }))
+                .build();
+    }
 }

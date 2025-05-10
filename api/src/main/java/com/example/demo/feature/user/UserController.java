@@ -70,4 +70,9 @@ public class UserController {
                                         log.error("處理用戶信息時發生錯誤", e);
                                 });
         }
+
+        @GetMapping("hello")
+        public Mono<ResponseEntity<String>> hello() {
+                return Mono.just(ResponseEntity.ok("Hello, World!"));
+        }
 }

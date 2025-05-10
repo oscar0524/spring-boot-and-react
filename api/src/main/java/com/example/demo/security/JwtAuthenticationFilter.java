@@ -21,24 +21,26 @@ public class JwtAuthenticationFilter implements WebFilter {
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String jwt = authHeader.substring(7);
-            String username = jwtUtil.extractUsername(jwt);
-
-            if (username != null) {
-                return Mono.just(username)
-                        .filter(name -> jwtUtil.validateToken(jwt, name))
-                        .map(name -> {
-                            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                    name, null, null);
-                            return authentication;
-                        })
-                        .flatMap(authentication -> chain.filter(exchange)
-                                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication)))
-                        .switchIfEmpty(chain.filter(exchange));
-            }
+        // 沒有認證頭或格式不正確，直接繼續過濾器鏈
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return chain.filter(exchange);
         }
 
-        return chain.filter(exchange);
+        // 提取並驗證 JWT
+        String jwt = authHeader.substring(7);
+        String username = jwtUtil.extractUsername(jwt);
+
+        // 用戶名為空或令牌無效，直接繼續過濾器鏈
+        if (username == null || !jwtUtil.validateToken(jwt, username)) {
+            return chain.filter(exchange);
+        }
+
+        // 創建認證對象
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(username, null,
+                null);
+
+        // 先設置安全上下文，然後執行過濾器鏈
+        return chain.filter(exchange)
+                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
     }
 }
