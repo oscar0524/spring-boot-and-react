@@ -1,26 +1,23 @@
 package com.example.demo.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-@Component
-@RequiredArgsConstructor
-public class JwtUtil {
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 
-    private final JwtProperties jwtProperties;
+public class JwtTokenProvider {
+    private final Key key;
+    private final long expiration;
 
-    private Key getKey() {
-        return Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes());
+    public JwtTokenProvider(String secret, long expiration) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+        this.expiration = expiration;
     }
 
     public String generateToken(String userName) {
@@ -33,8 +30,8 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + jwtProperties.getExpiration() * 1000))
-                .signWith(getKey(), SignatureAlgorithm.HS256)
+                .setExpiration(new Date(System.currentTimeMillis() + expiration * 1000))
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
@@ -58,7 +55,7 @@ public class JwtUtil {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(getKey())
+                .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();

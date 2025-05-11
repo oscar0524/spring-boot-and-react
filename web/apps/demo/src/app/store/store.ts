@@ -29,9 +29,9 @@ const epicMiddlewareDependencies: EpicDependencies = {
     // 在運行時從 store 獲取 state 和 dispatch
     const state = store.getState();
     const dispatch = store.dispatch;
-    const accessToken = state.auth.accessToken;
+    const token = state.auth.token;
     // 創建帶有認證令牌的 axios 實例
-    return createAxiosObservableInstance(dispatch, accessToken);
+    return createAxiosObservableInstance(dispatch, token);
   },
 };
 

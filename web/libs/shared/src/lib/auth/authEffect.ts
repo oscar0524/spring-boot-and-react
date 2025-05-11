@@ -9,8 +9,8 @@ import {
   switchMap, // 切換到新 Observable 的操作符
   withLatestFrom, // 結合最新狀態的操作符
 } from 'rxjs';
-import { authEpicDependencies } from '.'; // 導入 Epic 依賴項
 import { authService } from './authService';
+import Axios from 'axios-observable';
 
 /**
  * 登入 Epic
@@ -71,12 +71,11 @@ const loadTokenEpic = (action$: Observable<Action>) =>
     switchMap(() =>
       authService.getToken().pipe(
         map((response) => {
-          const accessToken = response.data.accessToken; // 提取訪問令牌
-
-          return authActions.setAccessToken({ accessToken }); // 設置訪問令牌
+          const token = response.data; // 提取訪問令牌
+          return authActions.setToken({ token }); // 設置訪問令牌
         }),
         catchError((error) => {
-          console.error('Error fetching access token:', error); // 記錄錯誤
+          console.error('Error fetching token:', error); // 記錄錯誤
           return of(authActions.login()); // 出錯時重定向到登入頁面
         })
       )
@@ -89,21 +88,57 @@ const loadTokenEpic = (action$: Observable<Action>) =>
  */
 const loadUserInfoEpic = (
   action$: Observable<Action>,
-  state$: Observable<any>,
-  { axios }: authEpicDependencies // 注入配置好的 axios 實例
+  state$: Observable<any>
 ) =>
   action$.pipe(
     filter(authActions.loadUserInfo.match), // 過濾出 loadUserInfo action
-    switchMap(() => {
-      return authService.getUserInfo(axios()).pipe(
-        map((response) => {
-          const userInfo = response.data; // 提取用戶信息
+    withLatestFrom(state$), // 結合最新的 Redux 狀態
+    map(([_, state]) => state), // 提取狀態
+    map((state) => authSelectors.getAccessToken(state)), // 獲取訪問令牌
+    switchMap((accessToken) => {
+      return authService
+        .getUserInfo(
+          Axios.create({
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          })
+        )
+        .pipe(
+          map((response) => {
+            const userInfo = response.data; // 提取用戶信息
+            return authActions.setUserInfo({ userInfo }); // 設置用戶名
+          }),
+          catchError((error) => {
+            // 判斷是否為 401 未授權錯誤
+            if (error.response && error.response.status === 401) {
+              return of(authActions.refreshToken()); // 執行刷新令牌操作
+            }
+            console.error('Error fetching user info:', error); // 記錄錯誤
+            // 其他錯誤情況返回空操作
+            return of(authActions.emptyAction());
+          })
+        );
+    })
+  );
 
-          return authActions.setUserName({ userName: userInfo.username }); // 設置用戶名
+const refreshTokenEpic = (
+  action$: Observable<Action>,
+  state$: Observable<any>
+) =>
+  action$.pipe(
+    filter(authActions.refreshToken.match), // 過濾出 refreshToken action
+    withLatestFrom(state$), // 結合最新的 Redux 狀態
+    switchMap(([_, state]) => {
+      const token = authSelectors.getToken(state); // 獲取當前 token
+      return authService.refreshToken(token.refreshToken).pipe(
+        map((response) => {
+          const newToken = response.data; // 提取新的訪問令牌
+          return authActions.setToken({ token: newToken }); // 設置新的訪問令牌
         }),
         catchError((error) => {
-          console.error('Error fetching user info:', error); // 記錄錯誤
-          return of(authActions.emptyAction()); // 返回空操作
+          console.error('Error refreshing token:', error); // 記錄錯誤
+          return of(authActions.login()); // 出錯時重定向到登入頁面
         })
       );
     })
@@ -113,12 +148,9 @@ const loadUserInfoEpic = (
  * 設置訪問令牌後的處理 Epic
  * 當訪問令牌被設置後，自動加載用戶信息
  */
-const setAccessTokenEpic = (
-  action$: Observable<Action>,
-  state$: Observable<any>
-) =>
+const setTokenEpic = (action$: Observable<Action>, state$: Observable<any>) =>
   action$.pipe(
-    filter(authActions.setAccessToken.match), // 過濾出 setAccessToken action
+    filter(authActions.setToken.match), // 過濾出 setAccessToken action
     withLatestFrom(state$), // 結合最新的 Redux 狀態
     map(([_, state]) => state), // 提取狀態
     map((state) => authSelectors.getAccessToken(state)), // 獲取訪問令牌
@@ -136,7 +168,8 @@ export const authEpic = [
   loadAuthEpic,
   loadTokenEpic,
   loadUserInfoEpic,
-  setAccessTokenEpic,
+  refreshTokenEpic,
+  setTokenEpic,
 ];
 
 export default authEpic;

@@ -1,9 +1,21 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { Token } from './token';
+import { UserInfo } from './userInfo';
+
+type state = {
+  token: Token;
+  userInfo: UserInfo;
+};
 
 // 定義認證狀態的初始值
-const initialState = {
-  accessToken: '', // 存儲訪問令牌
-  userName: '', // 存儲用戶名稱
+const initialState: state = {
+  token: {
+    accessToken: '',
+    refreshToken: '',
+  },
+  userInfo: {
+    username: '',
+  },
 };
 
 export const authSlice = createSlice({
@@ -22,27 +34,30 @@ export const authSlice = createSlice({
     logout: (state) => ({ ...initialState }),
     // 加載令牌，重置狀態
     loadToken: (state) => ({ ...initialState }),
+    refreshToken: (state) => state,
     // 設置用戶名稱
-    setUserName: (state, action: PayloadAction<{ userName: string }>) => ({
+    setUserInfo: (state, action: PayloadAction<{ userInfo: UserInfo }>) => ({
       ...state,
       ...action.payload,
     }),
     // 設置訪問令牌
-    setAccessToken: (
-      state,
-      action: PayloadAction<{ accessToken: string }>
-    ) => ({ ...state, ...action.payload }),
+    setToken: (state, action: PayloadAction<{ token: Token }>) => ({
+      ...state,
+      ...action.payload,
+    }),
     // 清除訪問令牌
-    clearAccessToken: (state) => {
-      state.accessToken = '';
-    },
+    clearToken: (state) => ({
+      ...state,
+      token: { ...initialState.token },
+    }),
   },
   // 定義選擇器函數
   selectors: {
     // 獲取當前訪問令牌
-    getAccessToken: (state) => state.accessToken,
+    getAccessToken: (state) => state.token.accessToken,
+    getToken: (state) => state.token,
     // 獲取當前用戶名稱
-    getUserName: (state) => state.userName,
+    getUserName: (state) => state.userInfo.username,
   },
 });
 

@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.security.JwtUtil;
+import com.example.demo.security.JwtAccessTokenProvider;
+import com.example.demo.security.JwtRefreshTokenProvider;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,14 +22,15 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 @Slf4j
 public class UserController {
-        private final JwtUtil jwtUtil;
+        private final JwtAccessTokenProvider jwtAccessTokenProvider;
+        private final JwtRefreshTokenProvider jwtRefreshTokenProvider;
 
         @GetMapping("login")
         public Mono<ResponseEntity<Object>> login(
                         @RequestParam String username,
                         @RequestParam String redirect) {
                 return Mono.just(username)
-                                .map(name -> jwtUtil.generateToken(name))
+                                .map(name -> jwtAccessTokenProvider.generateToken(name))
                                 .map(token -> ResponseEntity
                                                 .status(302)
                                                 .header("Location", redirect + "?accessToken=" + token)
@@ -38,14 +40,15 @@ public class UserController {
 
         @GetMapping("token")
         public Mono<ResponseEntity<Token>> getToken() {
+                log.debug("獲取令牌請求");
                 return ReactiveSecurityContextHolder.getContext()
                                 .map(SecurityContext::getAuthentication)
                                 .filter(auth -> auth != null)
                                 .map(Authentication::getName)
                                 .filter(username -> username != null)
-                                .map(username -> jwtUtil.generateToken(username))
-                                .map(token -> Token.builder()
-                                                .accessToken(token)
+                                .map(username -> Token.builder()
+                                                .accessToken(jwtAccessTokenProvider.generateToken(username))
+                                                .refreshToken(jwtRefreshTokenProvider.generateToken(username))
                                                 .build())
                                 .map(ResponseEntity::ok)
                                 .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()))

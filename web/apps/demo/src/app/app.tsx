@@ -8,27 +8,27 @@ export function App() {
   const axios = useAxios();
   const { logout } = useAuth();
 
-  useEffect(() => {
-    const request = axios.requestWithAbort({
-      url: 'http://localhost:8080/test/hello',
-      method: 'GET',
-    });
+  // useEffect(() => {
+  //   const request = axios.requestWithAbort({
+  //     url: 'http://localhost:8080/test/hello',
+  //     method: 'GET',
+  //   });
 
-    const fetchData = async () => {
-      try {
-        const res = await request.request;
-        console.log('res', res);
-      } catch (err) {
-        console.log('err', err);
-      }
-    };
+  //   const fetchData = async () => {
+  //     try {
+  //       const res = await request.request;
+  //       console.log('res', res);
+  //     } catch (err) {
+  //       console.log('err', err);
+  //     }
+  //   };
 
-    fetchData();
+  //   fetchData();
 
-    return () => {
-      request.abort();
-    };
-  }, [axios]);
+  //   return () => {
+  //     request.abort();
+  //   };
+  // }, [axios]);
 
   return (
     <div>
