@@ -41,6 +41,8 @@ export const authSlice = createSlice({
   selectors: {
     // 獲取當前訪問令牌
     getAccessToken: (state) => state.accessToken,
+    // 獲取當前用戶名稱
+    getUserName: (state) => state.userName,
   },
 });
 

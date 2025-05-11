@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux'; // 從 react-redux 導入 hooks 用於操作 Redux store
-import { authActions, authSelectors } from '../store/slice/auth/auth-slice'; // 導入認證相關的 actions 和 selectors
+import { authActions, authSelectors } from './authSlice'; // 導入認證相關的 actions 和 selectors
 import { useEffect } from 'react'; // 導入 useEffect 處理副作用
 
 /**
@@ -8,22 +8,9 @@ import { useEffect } from 'react'; // 導入 useEffect 處理副作用
  */
 export const useAuth = () => {
   const dispatch = useDispatch(); // 獲取 dispatch 函數用於發送 actions
-  const accessToken = useSelector(authSelectors.getAccessToken); // 從 Redux store 獲取當前的 access token
 
-  /**
-   * 設定新的 access token
-   * @param accessToken - 要存儲的 access token 字符串
-   */
-  const setAccessToken = (accessToken: string) => {
-    dispatch(authActions.setAccessToken({ accessToken }));
-  };
-
-  /**
-   * 清除當前的 access token
-   */
-  const clearAccessToken = () => {
-    dispatch(authActions.clearAccessToken());
-  };
+  const accessToken = useSelector(authSelectors.getAccessToken); // 獲取當前的 access token
+  const userName = useSelector(authSelectors.getUserName); // 獲取當前的用戶名稱
 
   /**
    * 在組件掛載時，從持久化存儲中加載之前保存的 access token (如果有的話)
@@ -32,10 +19,21 @@ export const useAuth = () => {
     dispatch(authActions.loadAccessToken());
   }, [dispatch]);
 
+  function login() {
+    // 登入方法，觸發登入 action
+    dispatch(authActions.login());
+  }
+
+  function logout() {
+    // 登出方法，觸發登出 action
+    dispatch(authActions.logout());
+  }
+
   // 返回認證相關的狀態和方法供組件使用
   return {
     accessToken,
-    setAccessToken,
-    clearAccessToken,
+    userName,
+    login,
+    logout,
   };
 };

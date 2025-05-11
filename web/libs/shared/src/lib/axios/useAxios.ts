@@ -1,8 +1,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { authActions, authSelectors } from '../store/slice/auth/auth-slice';
+import { authActions, authSelectors, authService } from '@demo/shared/lib/auth';
 import { useDispatch, useSelector } from 'react-redux';
 import { Dispatch } from 'redux';
 import { useEffect } from 'react';
+import { lastValueFrom } from 'rxjs';
 
 // 擴展 Axios 實例類型，新增中斷請求功能
 export interface AxiosInstanceWithAbort extends AxiosInstance {
@@ -19,7 +20,7 @@ export interface AxiosInstanceWithAbort extends AxiosInstance {
 
 export const createAxiosInstance = (
   dispatch: Dispatch,
-  accessToken?: string
+  accessToken: string
 ): AxiosInstanceWithAbort => {
   const instance = axios.create({}) as AxiosInstanceWithAbort;
   const abortControllers = new Map<string, AbortController>();
@@ -62,12 +63,8 @@ export const createAxiosInstance = (
   // 請求攔截器 - 加入認證 token
   instance.interceptors.request.use(
     (config) => {
-      // 如果提供了 token 參數則使用，否則從 store 獲取
-      const token = accessToken;
-      if (token) {
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${accessToken}`;
       return config;
     },
     (error) => {
@@ -99,23 +96,24 @@ export const createAxiosInstance = (
         originalRequest._retry = true;
         try {
           // 嘗試獲取新 token
-          const response = await axios.get('http://localhost:8080/user/token', {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
+          const response = await lastValueFrom(
+            authService.refreshToken(accessToken)
+          );
           const newToken = response.data.accessToken; // 根據實際回應結構調整
 
-          if (newToken) {
-            // 更新 store 中的 token
-            dispatch(authActions.setAccessToken(newToken));
-
-            // 更新當前請求的 Authorization header
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-            // 重試原請求
-            return axios(originalRequest);
+          if (!newToken) {
+            // 如果沒有新的 token，則觸發登入流程
+            dispatch(authActions.login());
+            return Promise.reject(error);
           }
+          // 更新 store 中的 token
+          dispatch(authActions.setAccessToken(newToken));
+
+          // 更新當前請求的 Authorization header
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+          // 重試原請求
+          return axios(originalRequest);
         } catch (refreshError) {
           console.log('重新獲取 token 失敗:', refreshError);
           // 重新獲取 token 失敗，觸發登入流程

@@ -1,5 +1,5 @@
 import { Action } from 'redux'; // 導入 Redux Action 類型
-import { authActions, authSelectors } from './auth-slice'; // 導入認證相關的 actions 和 selectors
+import { authActions, authSelectors } from './authSlice'; // 導入認證相關的 actions 和 selectors
 import {
   catchError, // 處理錯誤情況
   filter, // 過濾操作符
@@ -9,8 +9,8 @@ import {
   switchMap, // 切換到新 Observable 的操作符
   withLatestFrom, // 結合最新狀態的操作符
 } from 'rxjs';
-import { EpicDependencies } from '../../store'; // 導入 Epic 依賴項
-import Axios from 'axios-observable'; // 導入基於 Observable 的 Axios 客戶端
+import { authEpicDependencies } from '.'; // 導入 Epic 依賴項
+import { authService } from './authService';
 
 /**
  * 登入 Epic
@@ -21,7 +21,7 @@ const loginEpic = (action$: Observable<Action>) =>
     filter(authActions.login.match), // 過濾出 login action
     map((action) => {
       // 重定向到登入頁面，並設置返回 URL
-      document.location.href = `http://localhost:8080/form/login?username=oscar&redirect=${window.location}`;
+      authService.login();
       return authActions.emptyAction(); // 返回空操作避免狀態更新
     })
   );
@@ -35,7 +35,7 @@ const logoutEpic = (action$: Observable<Action>) =>
     filter(authActions.logout.match), // 過濾出 logout action
     map((action) => {
       // 重定向到登出頁面，並設置返回 URL
-      document.location.href = `http://localhost:8080/form/logout?redirect=${window.location}`;
+      authService.logout();
       return authActions.emptyAction(); // 返回空操作避免狀態更新
     })
   );
@@ -69,9 +69,7 @@ const loadTokenEpic = (action$: Observable<Action>) =>
   action$.pipe(
     filter(authActions.loadToken.match), // 過濾出 loadToken action
     switchMap(() =>
-      Axios.get('http://localhost:8080/form/token', {
-        withCredentials: true, // 包含憑證（如 cookies）
-      }).pipe(
+      authService.getToken().pipe(
         map((response) => {
           const accessToken = response.data.accessToken; // 提取訪問令牌
 
@@ -92,14 +90,12 @@ const loadTokenEpic = (action$: Observable<Action>) =>
 const loadUserInfoEpic = (
   action$: Observable<Action>,
   state$: Observable<any>,
-  { axios }: EpicDependencies // 注入配置好的 axios 實例
+  { axios }: authEpicDependencies // 注入配置好的 axios 實例
 ) =>
   action$.pipe(
     filter(authActions.loadUserInfo.match), // 過濾出 loadUserInfo action
     switchMap(() => {
-      const _axios = axios(); // 獲取配置好的 axios 實例（可能已包含認證頭）
-
-      return _axios.get('http://localhost:8080/user/info').pipe(
+      return authService.getUserInfo(axios()).pipe(
         map((response) => {
           const userInfo = response.data; // 提取用戶信息
 
@@ -142,3 +138,5 @@ export const authEpic = [
   loadUserInfoEpic,
   setAccessTokenEpic,
 ];
+
+export default authEpic;

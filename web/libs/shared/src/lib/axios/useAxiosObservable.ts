@@ -1,26 +1,23 @@
 import Axios from 'axios-observable';
-import { authActions, authSelectors } from '../store/slice/auth/auth-slice';
+import { authActions, authSelectors } from '../auth';
 import { useDispatch, useSelector } from 'react-redux';
 import { Dispatch } from 'redux';
 import { lastValueFrom } from 'rxjs';
+import { authService } from '../auth/authService';
 
 export const createAxiosObservableInstance = (
   dispatch: Dispatch,
-  accessToken?: string
+  accessToken: string
 ) => {
-  console.log('Creating Axios Instance:', { accessToken });
-
   const instance = Axios.create({});
 
   // 請求攔截器 - 加入認證 token
   instance.interceptors.request.use(
     (config) => {
       // 如果提供了 token 參數則使用，否則從 store 獲取
-      const token = accessToken;
-      if (token) {
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${accessToken}`;
+
       return config;
     },
     (error) => {
@@ -38,7 +35,7 @@ export const createAxiosObservableInstance = (
         try {
           // 嘗試取得新的 accessToken
           const tokenResponse = await lastValueFrom(
-            Axios.get('http://localhost:8080/user/token')
+            authService.refreshToken(accessToken)
           );
 
           if (tokenResponse.data && tokenResponse.data.accessToken) {
@@ -53,17 +50,12 @@ export const createAxiosObservableInstance = (
 
             // 重試原始請求
             return lastValueFrom(instance.request(originalRequest));
-          } else {
-            // 沒有收到有效的 token，執行登入
-            dispatch(authActions.login());
-            return Promise.reject(error);
           }
         } catch (refreshError) {
           // 取得 token 失敗，執行登入
           console.error('Token refresh failed:', refreshError);
-          dispatch(authActions.login());
-          return Promise.reject(error);
         }
+        dispatch(authActions.login());
       }
       return Promise.reject(error);
     }
