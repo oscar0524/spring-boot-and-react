@@ -1,6 +1,5 @@
 package com.example.demo.security;
 
-import org.springframework.security.core.session.InMemoryReactiveSessionRegistry;
 import org.springframework.security.core.session.ReactiveSessionInformation;
 import org.springframework.security.core.session.ReactiveSessionRegistry;
 
