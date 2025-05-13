@@ -25,6 +25,9 @@ export default defineConfig(() => ({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+    rollupOptions: {
+      external: [/^@demo\/shared(\/|$)/],
+    },
   },
   test: {
     watch: false,

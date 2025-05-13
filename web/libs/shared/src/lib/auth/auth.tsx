@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { authActions } from '.';
+import { authActions } from './authSlice';
 
 export const Auth = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useDispatch(); // 獲取 dispatch 函數用於發送 actions

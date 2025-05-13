@@ -12,7 +12,6 @@
     ],
     "sharedGlobals": []
   },
-  "nxCloudId": "681e202e2fbe69131fc5c1c5",
   "plugins": [
     {
       "plugin": "@nx/js/typescript",
@@ -62,6 +61,9 @@
   ],
   "targetDefaults": {
     "test": {
+      "dependsOn": ["^build"]
+    },
+    "build": {
       "dependsOn": ["^build"]
     }
   },

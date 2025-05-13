@@ -3,12 +3,7 @@
  * 提供自動處理認證 token、token 刷新、請求中斷和錯誤處理的功能
  */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'; // 引入 axios 及其類型
-import {
-  authActions,
-  authSelectors,
-  authService,
-  Token,
-} from '@demo/shared/lib/auth'; // 引入認證相關的功能和類型
+import { authActions, authSelectors, authService, Token } from '../auth'; // 引入認證相關的功能和類型
 import { useDispatch, useSelector } from 'react-redux'; // 引入 Redux hooks
 import { Dispatch } from 'redux'; // 引入 Redux dispatch 類型
 import { useEffect } from 'react'; // 引入 React hooks

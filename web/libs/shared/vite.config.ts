@@ -3,6 +3,17 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import dts from 'vite-plugin-dts';
 import * as path from 'path';
+import { glob } from 'glob';
+
+// 獲取所有 lib 目錄下的入口點
+const libEntries = glob
+  .sync('src/lib/*/index.ts')
+  .reduce<Record<string, string>>((entries, path) => {
+    // 將路徑轉換為入口點名稱，例如：src/lib/auth/index.ts -> lib/auth
+    const entryName = path.replace(/^src\//, '').replace(/\/index\.ts$/, '');
+    entries[entryName] = path;
+    return entries;
+  }, {});
 
 export default defineConfig(() => ({
   root: __dirname,
@@ -12,14 +23,10 @@ export default defineConfig(() => ({
     dts({
       entryRoot: 'src',
       tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
+      // 確保為所有入口點生成類型定義
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
     }),
   ],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [ nxViteTsPaths() ],
-  // },
-  // Configuration for building your library.
-  // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
     outDir: './dist',
     emptyOutDir: true,
@@ -28,17 +35,24 @@ export default defineConfig(() => ({
       transformMixedEsModules: true,
     },
     lib: {
-      // Could also be a dictionary or array of multiple entry points.
-      entry: 'src/index.ts',
-      name: '@demo/shared',
-      fileName: 'index',
-      // Change this to the formats you want to support.
-      // Don't forget to update your package.json as well.
+      // 設定多入口點
+      entry: {
+        index: 'src/index.ts',
+        ...libEntries,
+      },
       formats: ['es' as const],
     },
     rollupOptions: {
-      // External packages that should not be bundled into your library.
       external: ['react', 'react-dom', 'react/jsx-runtime'],
+      output: {
+        // 確保生成的檔案路徑與匯入路徑匹配
+        entryFileNames: (chunkInfo) => {
+          return `${chunkInfo.name}.js`;
+        },
+        // 保持子目錄結構
+        preserveModules: true,
+        preserveModulesRoot: 'src',
+      },
     },
   },
   test: {

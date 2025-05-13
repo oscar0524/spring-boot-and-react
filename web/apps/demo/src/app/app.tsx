@@ -32,6 +32,7 @@ export function App() {
 
   return (
     <div>
+      <h1>{import.meta.env.VITE_ENV}</h1>
       <button onClick={logout}>LogOut</button>
       <Routes>
         <Route path="/" element={<Home />} />
